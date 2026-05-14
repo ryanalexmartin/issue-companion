@@ -54,7 +54,35 @@ A side benefit: small local models (3B–8B parameter range) are entirely adequa
 
 ## Status
 
-Early. README only. The shape above is the hypothesis. The first cut will probably ship as just **conflict detection against the last 30 days of open issues** — the simplest piece, the one that would have caught the motivating example, and the one easiest to evaluate honestly. Clarity checks and missing-context checks come after that earns its keep.
+**v0 is shipped: conflict detection on the CLI.** Pointed at a real-world case (`sentry#244`) it correctly identifies its known conflict (`sentry#243`) in ~7.5 seconds end-to-end against 29 candidate open issues, with no false positives in the top 5 most-similar candidates. Clarity checks and missing-context checks come after that earns its keep.
+
+## Quick start
+
+Prerequisites:
+- [Ollama](https://ollama.ai/) running on `localhost:11434`
+- Models pulled: `ollama pull nomic-embed-text && ollama pull qwen2.5:14b`
+- [`gh` CLI](https://cli.github.com/) authenticated against the target repo
+
+```bash
+pip install -r requirements.txt
+./companion.py owner/repo 123
+```
+
+For each of the top-K most-similar recent open issues, the script asks the LLM whether the two ask for contradictory things, and prints any conflicts as a ready-to-paste comment block:
+
+```
+## Possible conflicts with #244
+
+- **#243** 更新車單賓果通知跟信箱通知一樣只叫一次就好 _(similarity 0.92)_
+    Both issues address notification settings for updates but ask for opposite
+    behaviors — one wants notifications, the other limits them.
+```
+
+## Why `qwen2.5:14b` and not a small model
+
+Initial experiments used `llama3.2:3b`. Its embedding-recall was fine — the conflicting issue ranked at cosine 0.92, way ahead of the next candidate at 0.82 — but the model itself read "specific user reported a missing notification" and "drivers want fewer notifications" as different surfaces and called it not-a-conflict. The 14B Qwen model, which has substantially better Chinese reasoning, called it correctly on the first try with a clean one-sentence rationale. The performance cost (~7 s vs ~2 s) is well within the SLA the tool needs.
+
+If your repo is English-only, `llama3.2:3b` may well work; the model is configurable at the top of `companion.py`.
 
 ## License
 
